@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, Plus, Loader2 } from 'lucide-react';
+import { Upload, FileText, Plus, Loader2, X, FileUp } from 'lucide-react';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -11,10 +11,18 @@ function UploadPage() {
   const [cvFile, setCvFile] = useState(null);
   const [cvUploading, setCvUploading] = useState(false);
   const [cvUploaded, setCvUploaded] = useState(null);
+  
+  // JD text input method
   const [jdTitle, setJdTitle] = useState('');
   const [jdText, setJdText] = useState('');
   const [jdAdding, setJdAdding] = useState(false);
+  
+  // JD file upload method
+  const [jdFiles, setJdFiles] = useState([]);
+  const [jdUploading, setJdUploading] = useState(false);
+  
   const [jdsAdded, setJdsAdded] = useState([]);
+  const [uploadMethod, setUploadMethod] = useState('text'); // 'text' or 'file'
 
   const handleCvUpload = async () => {
     if (!cvFile) return;
@@ -29,7 +37,7 @@ function UploadPage() {
       });
 
       setCvUploaded(response.data);
-      alert(`CV uploaded successfully: ${response.data.name}`);
+      localStorage.setItem('current_cv_id', response.data.cv_id);
     } catch (error) {
       console.error('CV upload failed:', error);
       alert('Failed to upload CV: ' + (error.response?.data?.detail || error.message));
@@ -38,7 +46,7 @@ function UploadPage() {
     }
   };
 
-  const handleAddJd = async () => {
+  const handleAddJdText = async () => {
     if (!jdTitle || !jdText) {
       alert('Please provide both JD title and text');
       return;
@@ -54,7 +62,6 @@ function UploadPage() {
       setJdsAdded([...jdsAdded, response.data]);
       setJdTitle('');
       setJdText('');
-      alert(`JD added successfully: ${response.data.title}`);
     } catch (error) {
       console.error('JD add failed:', error);
       alert('Failed to add JD: ' + (error.response?.data?.detail || error.message));
@@ -63,7 +70,59 @@ function UploadPage() {
     }
   };
 
+  const handleUploadJdFiles = async () => {
+    if (jdFiles.length === 0) {
+      alert('Please select at least one JD file');
+      return;
+    }
+
+    setJdUploading(true);
+    const successfulUploads = [];
+    
+    try {
+      for (const file of jdFiles) {
+        try {
+          // Read file content
+          const text = await file.text();
+          
+          // Extract title from filename (remove extension)
+          const title = file.name.replace(/\.(txt|pdf|docx)$/i, '');
+          
+          const response = await axios.post(`${API}/jd/add`, {
+            title: title,
+            text: text
+          });
+          
+          successfulUploads.push(response.data);
+        } catch (error) {
+          console.error(`Failed to upload ${file.name}:`, error);
+        }
+      }
+      
+      if (successfulUploads.length > 0) {
+        setJdsAdded([...jdsAdded, ...successfulUploads]);
+        setJdFiles([]);
+        alert(`Successfully uploaded ${successfulUploads.length} JD(s)`);
+      }
+    } catch (error) {
+      console.error('JD upload failed:', error);
+      alert('Failed to upload JDs');
+    } finally {
+      setJdUploading(false);
+    }
+  };
+
+  const handleRemoveJd = (index) => {
+    setJdsAdded(jdsAdded.filter((_, i) => i !== index));
+  };
+
   const canProceed = cvUploaded && jdsAdded.length > 0;
+
+  const handleProceed = () => {
+    // Store JD IDs in localStorage for dashboard
+    localStorage.setItem('current_jd_ids', JSON.stringify(jdsAdded.map(jd => jd.jd_id)));
+    navigate('/dashboard');
+  };
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-6 md:px-12">
@@ -73,7 +132,7 @@ function UploadPage() {
           Upload Your Documents
         </h1>
         <p className="text-lg font-sans font-light leading-relaxed text-muted-foreground mb-12 max-w-2xl">
-          Start by uploading your CV and adding one or more job descriptions you'd like to match against.
+          Upload your CV and add one or more job descriptions. You can paste JD text or upload multiple JD files.
         </p>
 
         {/* CV Upload */}
@@ -106,29 +165,32 @@ function UploadPage() {
                   />
                 </label>
                 {cvFile && (
-                  <div className="mt-4">
-                    <p className="text-sm font-mono mb-4">Selected: {cvFile.name}</p>
+                  <div className="mt-6 flex items-center justify-between bg-muted/20 p-4 border border-border">
+                    <p className="text-sm font-mono">Selected: {cvFile.name}</p>
                     <button
                       onClick={handleCvUpload}
                       disabled={cvUploading}
-                      className="bg-primary text-primary-foreground px-8 py-4 text-sm font-mono tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 disabled:opacity-50"
+                      className="bg-primary text-primary-foreground px-6 py-3 text-sm font-mono tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 flex items-center gap-2"
                       data-testid="cv-upload-button"
                     >
                       {cvUploading ? (
-                        <span className="flex items-center gap-2">
+                        <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           Uploading...
-                        </span>
+                        </>
                       ) : (
-                        'Upload CV'
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Upload CV
+                        </>
                       )}
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-muted/20 p-6 border border-border" data-testid="cv-uploaded-info">
-                <p className="text-lg font-serif mb-2">✓ CV Uploaded: {cvUploaded.name}</p>
+              <div className="bg-primary/10 border border-primary/20 p-6" data-testid="cv-uploaded-info">
+                <p className="text-lg font-serif mb-2 text-primary">✓ CV Uploaded: {cvUploaded.name}</p>
                 <p className="text-sm text-muted-foreground font-mono">{cvUploaded.message}</p>
               </div>
             )}
@@ -141,60 +203,160 @@ function UploadPage() {
           data-testid="jd-input-section"
         >
           <div className="p-6 border-b border-border/50 bg-muted/10">
-            <div className="flex items-center gap-4">
-              <Plus className="w-6 h-6 text-primary" strokeWidth={1.5} />
-              <h2 className="text-2xl font-serif">Job Descriptions</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Plus className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                <h2 className="text-2xl font-serif">Job Descriptions</h2>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setUploadMethod('text')}
+                  className={`px-4 py-2 text-xs font-mono uppercase tracking-widest transition-all ${
+                    uploadMethod === 'text' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-transparent border border-border hover:border-primary'
+                  }`}
+                  data-testid="jd-text-method-button"
+                >
+                  Paste Text
+                </button>
+                <button
+                  onClick={() => setUploadMethod('file')}
+                  className={`px-4 py-2 text-xs font-mono uppercase tracking-widest transition-all ${
+                    uploadMethod === 'file' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-transparent border border-border hover:border-primary'
+                  }`}
+                  data-testid="jd-file-method-button"
+                >
+                  Upload Files
+                </button>
+              </div>
             </div>
           </div>
           <div className="p-8">
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">Job Title</label>
-                <input
-                  type="text"
-                  value={jdTitle}
-                  onChange={(e) => setJdTitle(e.target.value)}
-                  placeholder="e.g., Senior Backend Engineer"
-                  className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-serif italic"
-                  data-testid="jd-title-input"
-                />
+            {uploadMethod === 'text' ? (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">Job Title</label>
+                  <input
+                    type="text"
+                    value={jdTitle}
+                    onChange={(e) => setJdTitle(e.target.value)}
+                    placeholder="e.g., Senior Backend Engineer"
+                    className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-serif italic"
+                    data-testid="jd-title-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">JD Text</label>
+                  <textarea
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                    placeholder="Paste the full job description here..."
+                    rows={10}
+                    className="w-full border border-input bg-transparent p-4 text-base focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-sans"
+                    data-testid="jd-text-input"
+                  />
+                </div>
+                <button
+                  onClick={handleAddJdText}
+                  disabled={jdAdding || !jdTitle || !jdText}
+                  className="bg-primary text-primary-foreground px-8 py-4 text-sm font-mono tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 flex items-center gap-2"
+                  data-testid="add-jd-button"
+                >
+                  {jdAdding ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Add JD
+                    </>
+                  )}
+                </button>
               </div>
+            ) : (
               <div>
-                <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">JD Text</label>
-                <textarea
-                  value={jdText}
-                  onChange={(e) => setJdText(e.target.value)}
-                  placeholder="Paste the full job description here..."
-                  rows={10}
-                  className="w-full border border-input bg-transparent p-4 text-base focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-sans"
-                  data-testid="jd-text-input"
-                />
-              </div>
-              <button
-                onClick={handleAddJd}
-                disabled={jdAdding || !jdTitle || !jdText}
-                className="bg-primary text-primary-foreground px-8 py-4 text-sm font-mono tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 disabled:opacity-50"
-                data-testid="add-jd-button"
-              >
-                {jdAdding ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Adding...
-                  </span>
-                ) : (
-                  'Add JD'
+                <label 
+                  className="block border-2 border-dashed border-border hover:border-primary transition-colors p-12 text-center cursor-pointer mb-6"
+                  data-testid="jd-files-input-label"
+                >
+                  <FileUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground" strokeWidth={1.5} />
+                  <p className="text-base font-sans mb-2">Drop JD files here or click to browse</p>
+                  <p className="text-sm text-muted-foreground font-mono">Upload multiple TXT files at once</p>
+                  <input
+                    type="file"
+                    accept=".txt"
+                    multiple
+                    onChange={(e) => setJdFiles(Array.from(e.target.files))}
+                    className="hidden"
+                    data-testid="jd-files-input"
+                  />
+                </label>
+                
+                {jdFiles.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="bg-muted/20 p-4 border border-border">
+                      <p className="text-sm font-mono mb-3">Selected {jdFiles.length} file(s):</p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {jdFiles.map((file, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm font-sans py-1">
+                            <span>{file.name}</span>
+                            <button
+                              onClick={() => setJdFiles(jdFiles.filter((_, i) => i !== idx))}
+                              className="text-accent hover:text-accent/80"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleUploadJdFiles}
+                      disabled={jdUploading}
+                      className="bg-primary text-primary-foreground px-8 py-4 text-sm font-mono tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 flex items-center gap-2"
+                      data-testid="upload-jd-files-button"
+                    >
+                      {jdUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Upload {jdFiles.length} JD(s)
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
-              </button>
-            </div>
+              </div>
+            )}
 
             {jdsAdded.length > 0 && (
-              <div className="mt-8" data-testid="jds-added-list">
-                <p className="text-sm font-mono uppercase tracking-widest mb-4 text-muted-foreground">Added JDs ({jdsAdded.length})</p>
-                <div className="space-y-2">
+              <div className="mt-8 pt-8 border-t border-border" data-testid="jds-added-list">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Added JDs ({jdsAdded.length})</p>
+                </div>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
                   {jdsAdded.map((jd, idx) => (
-                    <div key={idx} className="bg-muted/20 p-4 border border-border">
-                      <p className="font-serif text-lg">{jd.title}</p>
-                      <p className="text-sm text-muted-foreground font-mono">{jd.message}</p>
+                    <div key={idx} className="bg-muted/20 p-4 border border-border flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-serif text-lg mb-1">{jd.title}</p>
+                        <p className="text-sm text-muted-foreground font-mono">{jd.message}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveJd(idx)}
+                        className="ml-4 text-accent hover:text-accent/80 transition-colors"
+                        data-testid={`remove-jd-${idx}`}
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -206,11 +368,11 @@ function UploadPage() {
         {/* Proceed Button */}
         {canProceed && (
           <button
-            onClick={() => navigate('/dashboard')}
-            className="w-full bg-accent text-accent-foreground px-8 py-6 text-base font-mono tracking-widest uppercase hover:bg-accent/90 transition-all duration-300 shadow-lg"
+            onClick={handleProceed}
+            className="w-full bg-accent text-accent-foreground px-8 py-6 text-base font-mono tracking-widest uppercase hover:bg-accent/90 transition-all duration-300 shadow-lg flex items-center justify-center gap-3"
             data-testid="proceed-to-dashboard-button"
           >
-            Proceed to Analysis Dashboard →
+            Proceed to Analysis Dashboard ({jdsAdded.length} JD{jdsAdded.length > 1 ? 's' : ''}) →
           </button>
         )}
       </div>

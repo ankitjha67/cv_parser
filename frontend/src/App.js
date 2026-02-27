@@ -9,6 +9,8 @@ import LandingPage from '@/pages/Landing';
 import UploadPage from '@/pages/Upload';
 import DashboardPage from '@/pages/Dashboard';
 import ApplicationsPage from '@/pages/Applications';
+import InterviewPrepPage from '@/pages/InterviewPrep';
+import RecruiterDashboardPage from '@/pages/RecruiterDashboard';
 import SettingsPage from '@/pages/Settings';
 
 function Navigation() {

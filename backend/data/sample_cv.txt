@@ -1,0 +1,38 @@
+John Mitchell
+john.mitchell@email.com | +1-555-0123 | San Francisco, CA
+
+SUMMARY
+Results-driven Software Engineer with 5+ years of experience building scalable web applications and microservices. Proficient in Python, React, and cloud technologies. Passionate about clean code and agile methodologies.
+
+EXPERIENCE
+
+Senior Software Engineer, TechCorp Inc, January 2022 - Present
+• Developed and maintained 15+ microservices using Python FastAPI and Docker, serving 200k+ daily active users
+• Improved API response time by 40% through database query optimization and Redis caching implementation
+• Led a team of 4 junior developers, conducting code reviews and mentoring sessions weekly
+• Implemented CI/CD pipeline using Jenkins and GitHub Actions, reducing deployment time from 2 hours to 15 minutes
+• Collaborated with product managers and designers to deliver 8 major features on time and under budget
+
+Software Engineer, DataFlow Solutions, June 2020 - December 2021
+• Built REST APIs with Django and PostgreSQL for data analytics platform processing 50GB+ daily
+• Developed React frontend components with TypeScript, improving user engagement by 25%
+• Integrated third-party APIs including Stripe for payments and SendGrid for email notifications
+• Participated in agile sprints and daily standups, consistently meeting sprint goals
+• Wrote comprehensive unit tests achieving 85% code coverage using pytest
+
+Junior Developer, StartupXYZ, August 2019 - May 2020
+• Created internal tools using Python Flask to automate data processing workflows
+• Maintained legacy codebase and fixed 50+ bugs across frontend and backend systems
+• Collaborated with QA team to ensure high-quality releases
+• Contributed to technical documentation and knowledge base articles
+
+SKILLS
+Python, JavaScript, TypeScript, React, Node.js, Django, FastAPI, Flask, PostgreSQL, MongoDB, Redis, Docker, Kubernetes, AWS (EC2, S3, Lambda), Git, CI/CD, REST APIs, Microservices, Agile, Scrum, TDD, Linux
+
+EDUCATION
+Bachelor of Science in Computer Science, Stanford University, 2015-2019
+GPA: 3.8/4.0
+
+CERTIFICATIONS
+AWS Certified Solutions Architect - Associate (2023)
+Certified Scrum Master (2022)

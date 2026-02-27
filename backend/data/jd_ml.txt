@@ -1,0 +1,54 @@
+Machine Learning Engineer - NLP Team
+AI Dynamics Corp
+
+Position Overview:
+AI Dynamics is looking for a talented Machine Learning Engineer specializing in Natural Language Processing to join our research and development team. You will work on cutting-edge NLP models that power our conversational AI products used by Fortune 500 companies.
+
+Key Responsibilities:
+• Design, train, and deploy state-of-the-art NLP models for production use
+• Conduct experiments with large language models (LLMs) and transformer architectures
+• Build data pipelines for model training and evaluation
+• Optimize models for inference performance and cost efficiency
+• Collaborate with research scientists on novel ML approaches
+• Implement MLOps best practices for model versioning and monitoring
+• Present findings and insights to technical and non-technical stakeholders
+
+Required Skills & Experience:
+• 3+ years of hands-on experience in machine learning engineering
+• Strong background in Natural Language Processing and deep learning
+• Proficiency with Python and ML frameworks (TensorFlow, PyTorch, HuggingFace)
+• Experience fine-tuning and deploying transformer models (BERT, GPT, T5)
+• Solid understanding of ML fundamentals: supervised/unsupervised learning, feature engineering, model evaluation
+• Experience with data preprocessing and ETL pipelines
+• Knowledge of vector databases and embedding techniques
+• Familiarity with cloud ML platforms (AWS SageMaker, GCP Vertex AI, Azure ML)
+• Strong programming skills and software engineering practices
+• Master's degree in Computer Science, Machine Learning, or related field
+
+Preferred Qualifications:
+• Ph.D. in Machine Learning, NLP, or Computer Science
+• Published research papers in top-tier ML conferences (NeurIPS, ICML, ACL, EMNLP)
+• Experience with prompt engineering and LLM fine-tuning
+• Knowledge of MLOps tools (MLflow, Weights & Biases, Kubeflow)
+• Experience with distributed training frameworks (Horovod, DeepSpeed)
+• Contributions to ML open-source projects
+• Experience with RAG (Retrieval-Augmented Generation) systems
+
+Technical Stack:
+• Python, PyTorch, TensorFlow, HuggingFace Transformers
+• scikit-learn, Pandas, NumPy
+• Docker, Kubernetes
+• AWS (EC2, S3, SageMaker, Lambda)
+• PostgreSQL, MongoDB, Pinecone/Weaviate
+• Git, MLflow, Jupyter
+
+Compensation & Benefits:
+• Competitive salary ($140k - $200k) based on experience
+• Stock options
+• Health, dental, vision insurance
+• Unlimited PTO
+• Learning and development stipend
+• Access to cutting-edge GPU clusters
+• Vibrant team culture with regular tech talks and hackathons
+
+AI Dynamics is committed to fostering a diverse and inclusive work environment.

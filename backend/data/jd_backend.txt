@@ -1,0 +1,44 @@
+Senior Backend Engineer - Cloud Platform Team
+InnovateTech Systems
+
+About the Role:
+We are seeking an exceptional Senior Backend Engineer to join our Cloud Platform team. You will be responsible for designing, building, and scaling our microservices infrastructure that powers millions of transactions daily.
+
+Responsibilities:
+• Design and implement highly scalable microservices using modern backend frameworks
+• Build and maintain RESTful APIs that serve high-traffic production systems
+• Collaborate with DevOps to implement CI/CD pipelines and infrastructure as code
+• Mentor junior engineers and conduct code reviews
+• Optimize database queries and improve system performance
+• Participate in on-call rotation for production support
+• Work closely with product and design teams to deliver features
+
+Required Qualifications:
+• 5+ years of professional software engineering experience
+• Strong proficiency in Python or Go
+• Deep understanding of microservices architecture and distributed systems
+• Experience with Docker and Kubernetes
+• Proficiency with SQL databases (PostgreSQL, MySQL) and NoSQL (MongoDB, Redis)
+• Experience with cloud platforms (AWS, GCP, or Azure)
+• Strong knowledge of REST API design principles
+• Experience with CI/CD tools (Jenkins, GitLab CI, GitHub Actions)
+• Excellent problem-solving and debugging skills
+• Bachelor's degree in Computer Science or equivalent experience
+
+Preferred Qualifications:
+• Experience with message queues (RabbitMQ, Kafka)
+• Knowledge of monitoring tools (Prometheus, Grafana, ELK stack)
+• Experience with Infrastructure as Code (Terraform, CloudFormation)
+• Contributions to open-source projects
+• AWS certifications
+• Familiarity with FastAPI, Django, or similar Python frameworks
+
+What We Offer:
+• Competitive salary ($160k - $220k) and equity
+• Comprehensive health, dental, and vision insurance
+• 401(k) with company match
+• Flexible work arrangements (hybrid or remote)
+• Professional development budget
+• Collaborative and innovative team culture
+
+InnovateTech is an equal opportunity employer committed to building a diverse and inclusive workplace.

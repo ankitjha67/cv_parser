@@ -79,6 +79,8 @@ function App() {
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="/interview-prep" element={<InterviewPrepPage />} />
+            <Route path="/recruiter" element={<RecruiterDashboardPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </BrowserRouter>

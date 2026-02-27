@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { Key, Save, Info } from 'lucide-react';
+import { Key, Save, Info, User, LogIn, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 function SettingsPage() {
+  const { user, login, logout } = useAuth();
   const [openaiKey, setOpenaiKey] = useState('');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
   const [saved, setSaved] = useState(false);
+  
+  // Auth form
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
 
   const handleSave = () => {
     localStorage.setItem('openai_key', openaiKey);
@@ -13,6 +19,20 @@ function SettingsPage() {
     localStorage.setItem('gemini_key', geminiKey);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleLogin = async () => {
+    if (!email || !name) {
+      alert('Please enter both email and name');
+      return;
+    }
+    const success = await login(email, name);
+    if (success) {
+      setEmail('');
+      setName('');
+    } else {
+      alert('Login failed');
+    }
   };
 
   return (
@@ -23,8 +43,73 @@ function SettingsPage() {
           Settings
         </h1>
         <p className="text-lg font-sans font-light leading-relaxed text-muted-foreground mb-12 max-w-2xl">
-          Configure API keys for LLM providers. Keys are stored locally in your browser.
+          Manage your account and configure API keys for LLM providers.
         </p>
+
+        {/* Account Section */}
+        <div className="border border-border bg-card overflow-hidden mb-8">
+          <div className="p-6 border-b border-border/50 bg-muted/10">
+            <div className="flex items-center gap-4">
+              <User className="w-6 h-6 text-primary" strokeWidth={1.5} />
+              <h2 className="text-2xl font-serif">Account</h2>
+            </div>
+          </div>
+          <div className="p-8">
+            {user ? (
+              <div>
+                <div className="bg-primary/10 border border-primary/20 p-6 mb-6">
+                  <p className="text-lg font-serif mb-2">Signed in as</p>
+                  <p className="text-2xl font-mono text-primary">{user.email}</p>
+                  <p className="text-muted-foreground mt-1">{user.name}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="bg-accent text-accent-foreground px-8 py-4 text-sm font-mono tracking-widest uppercase hover:bg-accent/90 transition-all flex items-center gap-2"
+                  data-testid="logout-button"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                    data-testid="email-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="John Doe"
+                    className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                    data-testid="name-input"
+                  />
+                </div>
+                <button
+                  onClick={handleLogin}
+                  className="bg-primary text-primary-foreground px-8 py-4 text-sm font-mono tracking-widest uppercase hover:bg-primary/90 transition-all flex items-center gap-2"
+                  data-testid="login-button"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Sign In / Register
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  * No password required. Simple email-based authentication for demo purposes.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Info Box */}
         <div className="bg-primary/10 border border-primary/20 p-6 mb-8 flex gap-4" data-testid="info-box">

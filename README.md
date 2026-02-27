@@ -213,7 +213,7 @@ Weighted categories:
 A **universal key** is pre-configured in the backend:
 
 ```
-EMERGENT_LLM_KEY=sk-emergent-8Bf11A2B8F114FfB17
+EMERGENT_LLM_KEY=<set-in-environment>
 ```
 
 This single key works for:
@@ -335,7 +335,7 @@ python cli.py match data/sample_cv.txt data/jd_backend.txt -o ./test_output
 MONGO_URL="mongodb://localhost:27017"
 DB_NAME="test_database"
 CORS_ORIGINS="*"
-EMERGENT_LLM_KEY=sk-emergent-8Bf11A2B8F114FfB17
+EMERGENT_LLM_KEY=<set-in-environment>
 
 # Optional: Override with your own keys
 OPENAI_API_KEY=sk-...

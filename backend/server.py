@@ -549,6 +549,198 @@ async def download_tailored_cv(tailored_id: str):
         headers={"Content-Disposition": f"attachment; filename=tailored_cv_{cv.name.replace(' ', '_')}.txt"}
     )
 
+# ========== CSV EXPORT ENDPOINT ==========
+
+@api_router.get("/applications/export/csv")
+async def export_applications_csv(authorization: Optional[str] = Header(None)):
+    """Export all applications to CSV."""
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        apps_cursor = db.applications.find({'user_email': user_email}, {'_id': 0}).sort('application_date', -1)
+        apps = await apps_cursor.to_list(1000)
+        
+        # Generate CSV
+        import csv
+        import io
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow([
+            'Company', 'Position', 'Status', 'Match Score', 'Application Date',
+            'Interview Date', 'Notes', 'Recruiter Name', 'Recruiter Email', 'Recruiter Phone'
+        ])
+        
+        # Rows
+        for app in apps:
+            recruiter = app.get('recruiter', {})
+            writer.writerow([
+                app.get('company_name', ''),
+                app.get('position', ''),
+                app.get('status', ''),
+                app.get('match_score', ''),
+                app.get('application_date', '')[:10] if app.get('application_date') else '',
+                app.get('interview_date', '')[:10] if app.get('interview_date') else '',
+                app.get('notes', ''),
+                recruiter.get('name', '') if recruiter else '',
+                recruiter.get('email', '') if recruiter else '',
+                recruiter.get('phone', '') if recruiter else ''
+            ])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=applications_export.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+# ========== EMAIL NOTIFICATIONS ENDPOINTS ==========
+
+@api_router.get("/notifications")
+async def get_notifications(authorization: Optional[str] = Header(None)):
+    """Get all notifications for user."""
+    from src.schemas import EmailNotification
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        return []
+    
+    try:
+        notifs_cursor = db.notifications.find({'user_email': user_email}, {'_id': 0}).sort('sent_at', -1).limit(50)
+        notifs_docs = await notifs_cursor.to_list(50)
+        return [EmailNotification(**doc) for doc in notifs_docs]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch notifications: {str(e)}")
+
+@api_router.post("/notifications/mark-read/{notification_id}")
+async def mark_notification_read(notification_id: str, authorization: Optional[str] = Header(None)):
+    """Mark notification as read."""
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    await db.notifications.update_one(
+        {'id': notification_id, 'user_email': user_email},
+        {'$set': {'read': True}}
+    )
+    return {"message": "Notification marked as read"}
+
+async def send_notification(user_email: str, subject: str, body: str, notification_type: str):
+    """Helper to send notification."""
+    from src.schemas import EmailNotification
+    notification = EmailNotification(
+        user_email=user_email,
+        subject=subject,
+        body=body,
+        notification_type=notification_type
+    )
+    await db.notifications.insert_one({
+        **notification.model_dump(),
+        'sent_at': notification.sent_at.isoformat()
+    })
+
+# ========== RECRUITER/TEAM DASHBOARD ENDPOINTS ==========
+
+@api_router.get("/recruiter/dashboard")
+async def get_recruiter_dashboard(authorization: Optional[str] = Header(None)):
+    """Get recruiter dashboard with KPIs."""
+    from src.schemas import RecruiterDashboard
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Check if user is recruiter
+    user = await db.users.find_one({'email': user_email}, {'_id': 0})
+    if not user or user.get('role') != 'recruiter':
+        raise HTTPException(status_code=403, detail="Recruiter access only")
+    
+    try:
+        # Get all CVs from candidates
+        total_candidates = await db.cvs.count_documents({})
+        
+        # Get all JDs from this recruiter
+        active_positions = await db.jds.count_documents({'user_email': user_email})
+        
+        # Get applications with interview status
+        interviews_scheduled = await db.applications.count_documents({'status': 'interview'})
+        
+        # Calculate average match score across all reports
+        reports_cursor = db.reports.find({}, {'_id': 0, 'total_score': 1}).limit(1000)
+        reports = await reports_cursor.to_list(1000)
+        avg_score = sum(r.get('total_score', 0) for r in reports) / len(reports) if reports else 0
+        
+        # Get top candidates (high match scores)
+        top_reports_cursor = db.reports.find({}, {'_id': 0}).sort('total_score', -1).limit(10)
+        top_reports = await top_reports_cursor.to_list(10)
+        
+        top_candidates = []
+        for report in top_reports:
+            cv_doc = await db.cvs.find_one({'id': report.get('cv_id')}, {'_id': 0})
+            if cv_doc:
+                top_candidates.append({
+                    'name': cv_doc.get('name'),
+                    'score': report.get('total_score'),
+                    'jd_title': report.get('jd_title'),
+                    'cv_id': cv_doc.get('id')
+                })
+        
+        dashboard = RecruiterDashboard(
+            total_candidates=total_candidates,
+            active_positions=active_positions,
+            interviews_scheduled=interviews_scheduled,
+            avg_match_score=round(avg_score, 1),
+            top_candidates=top_candidates
+        )
+        
+        return dashboard
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dashboard failed: {str(e)}")
+
+@api_router.get("/recruiter/candidates")
+async def get_all_candidates(
+    min_score: Optional[float] = 0,
+    authorization: Optional[str] = Header(None)
+):
+    """Get all candidates with filtering."""
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    user = await db.users.find_one({'email': user_email}, {'_id': 0})
+    if not user or user.get('role') != 'recruiter':
+        raise HTTPException(status_code=403, detail="Recruiter access only")
+    
+    try:
+        # Get all match reports with scores above threshold
+        reports_cursor = db.reports.find(
+            {'total_score': {'$gte': min_score}},
+            {'_id': 0}
+        ).sort('total_score', -1).limit(100)
+        reports = await reports_cursor.to_list(100)
+        
+        candidates = []
+        for report in reports:
+            cv_doc = await db.cvs.find_one({'id': report.get('cv_id')}, {'_id': 0})
+            if cv_doc:
+                candidates.append({
+                    'cv_id': cv_doc.get('id'),
+                    'name': cv_doc.get('name'),
+                    'skills': cv_doc.get('skills', [])[:10],
+                    'match_score': report.get('total_score'),
+                    'jd_title': report.get('jd_title'),
+                    'report_id': report.get('id')
+                })
+        
+        return {"candidates": candidates, "count": len(candidates)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch candidates: {str(e)}")
+
 # Include router
 app.include_router(api_router)
 

@@ -1,50 +1,71 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import '@/App.css';
+import '@/index.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Pages
+import LandingPage from '@/pages/Landing';
+import UploadPage from '@/pages/Upload';
+import DashboardPage from '@/pages/Dashboard';
+import SettingsPage from '@/pages/Settings';
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+function Navigation() {
+  const location = useLocation();
+  const isLanding = location.pathname === '/';
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+  if (isLanding) return null;
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 backdrop-blur-md bg-background/80 supports-[backdrop-filter]:bg-background/60">
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-6 flex items-center justify-between">
+        <Link 
+          to="/" 
+          className="text-2xl font-serif font-semibold tracking-tight hover:text-primary transition-colors"
+          data-testid="logo-link"
         >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
+          CV Matcher
+        </Link>
+        <div className="flex gap-8">
+          <Link 
+            to="/upload" 
+            className="text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
+            data-testid="nav-upload"
+          >
+            Upload
+          </Link>
+          <Link 
+            to="/dashboard" 
+            className="text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
+            data-testid="nav-dashboard"
+          >
+            Dashboard
+          </Link>
+          <Link 
+            to="/settings" 
+            className="text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
+            data-testid="nav-settings"
+          >
+            Settings
+          </Link>
+        </div>
+      </div>
+    </nav>
   );
-};
+}
 
 function App() {
   return (
     <div className="App">
+      {/* Noise overlay */}
+      <div className="noise-overlay" />
+      
       <BrowserRouter>
+        <Navigation />
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </BrowserRouter>
     </div>

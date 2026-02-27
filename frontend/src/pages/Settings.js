@@ -115,9 +115,11 @@ function SettingsPage() {
         <div className="bg-primary/10 border border-primary/20 p-6 mb-8 flex gap-4" data-testid="info-box">
           <Info className="w-6 h-6 text-primary flex-shrink-0" strokeWidth={1.5} />
           <div>
+            <p className="text-sm font-sans leading-relaxed mb-2">
+              <strong className="font-mono">Emergent LLM Key:</strong> A universal key (sk-emergent-8Bf11A2B8F114FfB17) is already configured for OpenAI, Anthropic, and Gemini.
+            </p>
             <p className="text-sm font-sans leading-relaxed">
-              <strong className="font-mono">Emergent LLM Key:</strong> A universal key (sk-emergent-8Bf11A2B8F114FfB17) is already configured in the backend for OpenAI, Anthropic, and Gemini. 
-              You can override it here with your own keys if preferred.
+              <strong className="font-mono">Local LLMs:</strong> You can also use Ollama or other local models by configuring the API URL below.
             </p>
           </div>
         </div>

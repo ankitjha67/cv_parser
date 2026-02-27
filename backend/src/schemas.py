@@ -205,3 +205,62 @@ class RecruiterDashboard(BaseModel):
     interviews_scheduled: int
     avg_match_score: float
     top_candidates: List[Dict]
+
+
+class Comment(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(default_factory=lambda: str(__import__('uuid').uuid4()))
+    application_id: str
+    user_email: str
+    user_name: str
+    text: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
+
+
+class CommentCreate(BaseModel):
+    text: str
+    user_name: str = "Recruiter"
+
+
+class InterviewSlot(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(default_factory=lambda: str(__import__('uuid').uuid4()))
+    application_id: str
+    recruiter_email: str
+    candidate_email: str
+    candidate_name: str
+    position: str
+    company: str
+    scheduled_at: datetime
+    duration_minutes: int = 60
+    location: str = ""
+    meeting_link: str = ""
+    notes: str = ""
+    status: Literal["scheduled", "completed", "cancelled"] = "scheduled"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
+
+
+class InterviewSlotCreate(BaseModel):
+    application_id: str
+    candidate_email: str
+    candidate_name: str
+    position: str
+    company: str
+    scheduled_at: datetime
+    duration_minutes: int = 60
+    location: str = ""
+    meeting_link: str = ""
+    notes: str = ""
+
+
+class AnalyticsDashboard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    total_applications: int
+    total_interviews: int
+    total_offers: int
+    avg_match_score: float
+    score_distribution: List[Dict]       # [{range, count}]
+    success_by_score: List[Dict]         # [{range, rate}]
+    status_breakdown: Dict[str, int]     # {status: count}
+    applications_over_time: List[Dict]   # [{date, count}]
+    top_companies: List[Dict]            # [{company, count, avg_score}]

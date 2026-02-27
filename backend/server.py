@@ -643,8 +643,9 @@ async def mark_notification_read(notification_id: str, authorization: Optional[s
     return {"message": "Notification marked as read"}
 
 async def send_notification(user_email: str, subject: str, body: str, notification_type: str):
-    """Helper to send notification."""
+    """Store in-app notification and optionally send a real email."""
     from src.schemas import EmailNotification
+    from src.email_service import send_email, _base_template, SMTP_ENABLED
     notification = EmailNotification(
         user_email=user_email,
         subject=subject,
@@ -655,6 +656,10 @@ async def send_notification(user_email: str, subject: str, body: str, notificati
         **notification.model_dump(),
         'sent_at': notification.sent_at.isoformat()
     })
+    # Also send actual email when SMTP is configured
+    if SMTP_ENABLED and user_email and '@' in user_email:
+        html = _base_template(f"<h2>{subject}</h2><p>{body}</p>", subject)
+        await send_email(user_email, subject, html, body)
 
 # ========== RECRUITER/TEAM DASHBOARD ENDPOINTS ==========
 
@@ -751,6 +756,336 @@ async def get_all_candidates(
         return {"candidates": candidates, "count": len(candidates)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch candidates: {str(e)}")
+
+# ========== COMMENTS (TEAM COLLABORATION) ==========
+
+@api_router.get("/applications/{app_id}/comments")
+async def get_comments(app_id: str, authorization: Optional[str] = Header(None)):
+    """Get all comments for an application."""
+    from src.schemas import Comment
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    cursor = db.comments.find({'application_id': app_id}, {'_id': 0}).sort('created_at', 1)
+    docs = await cursor.to_list(200)
+    return [Comment(**d) for d in docs]
+
+
+@api_router.post("/applications/{app_id}/comments")
+async def add_comment(
+    app_id: str,
+    body: dict,
+    authorization: Optional[str] = Header(None)
+):
+    """Add a comment to an application."""
+    from src.schemas import Comment
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    comment = Comment(
+        application_id=app_id,
+        user_email=user_email,
+        user_name=body.get('user_name', user_email.split('@')[0].title()),
+        text=body.get('text', '').strip()
+    )
+    if not comment.text:
+        raise HTTPException(status_code=400, detail="Comment text required")
+    await db.comments.insert_one({**comment.model_dump(), 'created_at': comment.created_at.isoformat()})
+    return comment
+
+
+@api_router.delete("/applications/{app_id}/comments/{comment_id}")
+async def delete_comment(app_id: str, comment_id: str, authorization: Optional[str] = Header(None)):
+    """Delete own comment."""
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    result = await db.comments.delete_one({'id': comment_id, 'user_email': user_email})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Comment not found or not owned by you")
+    return {"message": "Deleted"}
+
+
+# ========== INTERVIEW SCHEDULER ==========
+
+@api_router.post("/interviews")
+async def schedule_interview(body: dict, authorization: Optional[str] = Header(None)):
+    """Schedule an interview and notify the candidate by email."""
+    from src.schemas import InterviewSlot
+    from src.email_service import send_interview_invitation_email
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        scheduled_at = datetime.fromisoformat(body['scheduled_at'].replace('Z', '+00:00'))
+        slot = InterviewSlot(
+            application_id=body.get('application_id', ''),
+            recruiter_email=user_email,
+            candidate_email=body['candidate_email'],
+            candidate_name=body.get('candidate_name', ''),
+            position=body.get('position', ''),
+            company=body.get('company', ''),
+            scheduled_at=scheduled_at,
+            duration_minutes=int(body.get('duration_minutes', 60)),
+            location=body.get('location', ''),
+            meeting_link=body.get('meeting_link', ''),
+            notes=body.get('notes', ''),
+        )
+        await db.interviews.insert_one({
+            **slot.model_dump(),
+            'scheduled_at': slot.scheduled_at.isoformat(),
+            'created_at': slot.created_at.isoformat()
+        })
+
+        # Update application status to 'interview'
+        if slot.application_id:
+            await db.applications.update_one(
+                {'id': slot.application_id},
+                {'$set': {'status': 'interview', 'interview_date': slot.scheduled_at.isoformat(),
+                          'updated_at': datetime.now(timezone.utc).isoformat()}}
+            )
+
+        # Send invitation email to candidate
+        await send_interview_invitation_email(
+            to_email=slot.candidate_email,
+            candidate_name=slot.candidate_name,
+            position=slot.position,
+            company=slot.company,
+            scheduled_at=slot.scheduled_at,
+            duration_minutes=slot.duration_minutes,
+            location=slot.location,
+            meeting_link=slot.meeting_link,
+            recruiter_name=user_email.split('@')[0].title(),
+            notes=slot.notes
+        )
+
+        # Store in-app notification
+        await send_notification(
+            slot.candidate_email,
+            f"Interview scheduled — {slot.position} at {slot.company}",
+            f"Your interview is scheduled for {slot.scheduled_at.strftime('%d %b %Y at %H:%M')}",
+            "interview_reminder"
+        )
+
+        return slot.model_dump()
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to schedule interview: {str(e)}")
+
+
+@api_router.get("/interviews")
+async def get_interviews(authorization: Optional[str] = Header(None)):
+    """Get all interviews for the current user (as recruiter or candidate)."""
+    from src.schemas import InterviewSlot
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    cursor = db.interviews.find(
+        {'$or': [{'recruiter_email': user_email}, {'candidate_email': user_email}]},
+        {'_id': 0}
+    ).sort('scheduled_at', 1)
+    docs = await cursor.to_list(200)
+    return docs
+
+
+@api_router.patch("/interviews/{interview_id}")
+async def update_interview(interview_id: str, body: dict, authorization: Optional[str] = Header(None)):
+    """Update interview status or details."""
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+    allowed = {k: v for k, v in body.items() if k in ('status', 'notes', 'meeting_link', 'location')}
+    if not allowed:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    await db.interviews.update_one({'id': interview_id}, {'$set': allowed})
+    return {"message": "Updated"}
+
+
+@api_router.get("/interviews/{interview_id}/calendar")
+async def download_calendar_invite(interview_id: str):
+    """Download .ics calendar file for an interview."""
+    doc = await db.interviews.find_one({'id': interview_id}, {'_id': 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    from datetime import timezone as tz
+    scheduled_at = datetime.fromisoformat(doc['scheduled_at'].replace('Z', '+00:00'))
+    duration = doc.get('duration_minutes', 60)
+    end_at = scheduled_at.replace(tzinfo=tz.utc) + __import__('datetime').timedelta(minutes=duration)
+    start_str = scheduled_at.strftime('%Y%m%dT%H%M%SZ')
+    end_str = end_at.strftime('%Y%m%dT%H%M%SZ')
+    now_str = datetime.now(tz.utc).strftime('%Y%m%dT%H%M%SZ')
+
+    location_line = f"LOCATION:{doc.get('location', '')}\r\n" if doc.get('location') else ""
+    url_line = f"URL:{doc.get('meeting_link', '')}\r\n" if doc.get('meeting_link') else ""
+
+    ics = (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//CV Matcher Premium//EN\r\n"
+        "CALSCALE:GREGORIAN\r\n"
+        "METHOD:REQUEST\r\n"
+        "BEGIN:VEVENT\r\n"
+        f"UID:{interview_id}@cvmatcher.ai\r\n"
+        f"DTSTAMP:{now_str}\r\n"
+        f"DTSTART:{start_str}\r\n"
+        f"DTEND:{end_str}\r\n"
+        f"SUMMARY:Interview — {doc.get('position', '')} at {doc.get('company', '')}\r\n"
+        f"DESCRIPTION:Interview for {doc.get('position', '')} at {doc.get('company', '')}.\\n"
+        f"Candidate: {doc.get('candidate_name', '')}\\nDuration: {duration} minutes\r\n"
+        f"{location_line}"
+        f"{url_line}"
+        f"ORGANIZER:mailto:{doc.get('recruiter_email', '')}\r\n"
+        f"ATTENDEE;RSVP=TRUE:mailto:{doc.get('candidate_email', '')}\r\n"
+        "STATUS:CONFIRMED\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+
+    return Response(
+        content=ics,
+        media_type="text/calendar",
+        headers={"Content-Disposition": f"attachment; filename=interview_{interview_id}.ics"}
+    )
+
+
+# ========== ANALYTICS DASHBOARD ==========
+
+@api_router.get("/analytics/dashboard")
+async def get_analytics_dashboard(authorization: Optional[str] = Header(None)):
+    """Full analytics dashboard for the current user."""
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        return {"error": "Authentication required"}
+
+    apps_cursor = db.applications.find({'user_email': user_email}, {'_id': 0})
+    apps = await apps_cursor.to_list(1000)
+
+    total = len(apps)
+    interviews = sum(1 for a in apps if a.get('status') in ('interview', 'offer', 'accepted'))
+    offers = sum(1 for a in apps if a.get('status') in ('offer', 'accepted'))
+    scores = [a['match_score'] for a in apps if a.get('match_score') is not None]
+    avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+
+    # Score distribution
+    ranges = [("0–39", 0, 39), ("40–59", 40, 59), ("60–79", 60, 79), ("80–100", 80, 100)]
+    score_dist = [{"range": r, "count": sum(1 for s in scores if lo <= s <= hi)} for r, lo, hi in ranges]
+
+    # Success rate by score range
+    success_by_score = []
+    for r, lo, hi in ranges:
+        in_range = [a for a in apps if a.get('match_score') is not None and lo <= a['match_score'] <= hi]
+        successful = [a for a in in_range if a.get('status') in ('interview', 'offer', 'accepted')]
+        rate = round(len(successful) / len(in_range) * 100, 1) if in_range else 0
+        success_by_score.append({"range": r, "rate": rate, "total": len(in_range)})
+
+    # Status breakdown
+    from collections import Counter
+    status_breakdown = dict(Counter(a.get('status', 'applied') for a in apps))
+
+    # Applications over time (last 30 days)
+    from datetime import timedelta
+    today = datetime.now(timezone.utc).date()
+    daily = {}
+    for a in apps:
+        try:
+            d = datetime.fromisoformat(a['application_date'].replace('Z', '+00:00')).date()
+            key = d.isoformat()
+            daily[key] = daily.get(key, 0) + 1
+        except Exception:
+            pass
+    apps_over_time = [{"date": k, "count": v} for k, v in sorted(daily.items())[-30:]]
+
+    # Top companies
+    company_stats: Dict = {}
+    for a in apps:
+        c = a.get('company_name', 'Unknown')
+        if c not in company_stats:
+            company_stats[c] = {"count": 0, "scores": []}
+        company_stats[c]["count"] += 1
+        if a.get('match_score') is not None:
+            company_stats[c]["scores"].append(a['match_score'])
+    top_companies = sorted(
+        [{"company": c, "count": v["count"],
+          "avg_score": round(sum(v["scores"]) / len(v["scores"]), 1) if v["scores"] else 0}
+         for c, v in company_stats.items()],
+        key=lambda x: x["count"], reverse=True
+    )[:10]
+
+    return {
+        "total_applications": total,
+        "total_interviews": interviews,
+        "total_offers": offers,
+        "avg_match_score": avg_score,
+        "score_distribution": score_dist,
+        "success_by_score": success_by_score,
+        "status_breakdown": status_breakdown,
+        "applications_over_time": apps_over_time,
+        "top_companies": top_companies
+    }
+
+
+# ========== ENHANCED STATUS UPDATE WITH EMAIL ==========
+
+@api_router.patch("/applications/{app_id}/status")
+async def update_application_status_with_email(
+    app_id: str,
+    body: dict,
+    authorization: Optional[str] = Header(None)
+):
+    """Update application status and send email notification."""
+    from src.email_service import send_status_change_email
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    new_status = body.get('status')
+    notes = body.get('notes', '')
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status field required")
+
+    existing = await db.applications.find_one({'id': app_id}, {'_id': 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    await db.applications.update_one(
+        {'id': app_id},
+        {'$set': {'status': new_status, 'notes': notes,
+                  'updated_at': datetime.now(timezone.utc).isoformat()}}
+    )
+
+    # Send email notification
+    candidate_email = existing.get('user_email', '')
+    if candidate_email and candidate_email != 'anonymous':
+        await send_status_change_email(
+            to_email=candidate_email,
+            candidate_name=candidate_email.split('@')[0].title(),
+            company=existing.get('company_name', ''),
+            position=existing.get('position', ''),
+            new_status=new_status,
+            notes=notes
+        )
+        await send_notification(
+            candidate_email,
+            f"Application status updated — {existing.get('position', '')}",
+            f"Your application status changed to: {new_status}",
+            "status_change"
+        )
+
+    return {"message": "Status updated", "new_status": new_status}
+
+
+# ========== NOTIFICATION COUNT ==========
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(authorization: Optional[str] = Header(None)):
+    user_email = get_user_email(authorization)
+    if user_email == 'anonymous':
+        return {"count": 0}
+    count = await db.notifications.count_documents({'user_email': user_email, 'read': False})
+    return {"count": count}
+
 
 # Include router
 app.include_router(api_router)

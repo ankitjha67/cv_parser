@@ -129,7 +129,7 @@ function SettingsPage() {
           <div className="p-6 border-b border-border/50 bg-muted/10">
             <div className="flex items-center gap-4">
               <Key className="w-6 h-6 text-primary" strokeWidth={1.5} />
-              <h2 className="text-2xl font-serif">API Keys</h2>
+              <h2 className="text-2xl font-serif">API Keys & Local LLMs</h2>
             </div>
           </div>
           <div className="p-8 space-y-8">
@@ -165,6 +165,38 @@ function SettingsPage() {
                 className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
                 data-testid="gemini-key-input"
               />
+            </div>
+            
+            {/* Ollama Configuration */}
+            <div className="pt-6 border-t border-border">
+              <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-primary">Ollama API URL (Local LLM)</label>
+              <input
+                type="text"
+                value={localStorage.getItem('ollama_url') || ''}
+                onChange={(e) => localStorage.setItem('ollama_url', e.target.value)}
+                placeholder="http://localhost:11434"
+                className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                data-testid="ollama-url-input"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Run Ollama locally to use models like llama2, mistral, codellama without API costs.
+              </p>
+            </div>
+            
+            {/* Custom LLM Endpoint */}
+            <div>
+              <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-primary">Custom LLM Endpoint</label>
+              <input
+                type="text"
+                value={localStorage.getItem('custom_llm_url') || ''}
+                onChange={(e) => localStorage.setItem('custom_llm_url', e.target.value)}
+                placeholder="http://your-llm-server:8080/api"
+                className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                data-testid="custom-llm-url-input"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Connect to any OpenAI-compatible API endpoint (LM Studio, LocalAI, etc.)
+              </p>
             </div>
           </div>
         </div>

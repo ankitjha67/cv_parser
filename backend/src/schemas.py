@@ -75,30 +75,42 @@ class TailoredCV(BaseModel):
     user_email: str = "anonymous"
     match_report_id: str
     cv: CV
-    modifications: List[str] = Field(default_factory=list, description="List of modifications made")
+    modifications: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
 
 class ProviderConfig(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    provider: Literal["deterministic", "openai", "anthropic", "gemini", "huggingface"]
+    provider: Literal["deterministic", "openai", "anthropic", "gemini", "huggingface", "ollama", "local"]
     model: Optional[str] = None
     api_key: Optional[str] = None
+    api_url: Optional[str] = None
     temperature: float = 0.3
     max_tokens: int = 2000
 
-# User Authentication
 class User(BaseModel):
     model_config = ConfigDict(extra='forbid')
     email: EmailStr
     name: str
+    role: Literal["candidate", "recruiter", "admin"] = "candidate"
+    company: Optional[str] = None
+    phone: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
     total_applications: int = 0
 
 class UserCreate(BaseModel):
     email: EmailStr
     name: str
+    role: str = "candidate"
+    company: Optional[str] = None
+    phone: Optional[str] = None
 
-# Application Tracker
+class RecruiterDetails(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    company: str
+
 class Application(BaseModel):
     model_config = ConfigDict(extra='forbid')
     id: str = Field(default_factory=lambda: str(__import__('uuid').uuid4()))
@@ -112,6 +124,7 @@ class Application(BaseModel):
     application_date: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
     notes: str = ""
     interview_date: Optional[datetime] = None
+    recruiter: Optional[RecruiterDetails] = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
 
 class ApplicationCreate(BaseModel):
@@ -122,13 +135,14 @@ class ApplicationCreate(BaseModel):
     match_score: Optional[float] = None
     status: str = "applied"
     notes: str = ""
+    recruiter: Optional[RecruiterDetails] = None
 
 class ApplicationUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
     interview_date: Optional[datetime] = None
+    recruiter: Optional[RecruiterDetails] = None
 
-# Analytics & Benchmarks
 class IndustryBenchmark(BaseModel):
     model_config = ConfigDict(extra='forbid')
     industry: str
@@ -148,12 +162,20 @@ class CompetitiveAnalysis(BaseModel):
     strengths: List[str]
     improvement_areas: List[str]
 
-# Interview Prep
+class InterviewQuestion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    question: str
+    sample_answer: str
+    difficulty: Literal["easy", "medium", "hard"]
+    category: Literal["behavioral", "technical", "situational"]
+    tips: List[str] = Field(default_factory=list)
+
 class InterviewPrepSuggestion(BaseModel):
     model_config = ConfigDict(extra='forbid')
     gap: str
     question: str
     suggested_answer_approach: str
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
     resources: List[str]
 
 class InterviewPrep(BaseModel):
@@ -162,7 +184,24 @@ class InterviewPrep(BaseModel):
     user_email: str
     match_report_id: str
     jd_title: str
-    behavioral_questions: List[str]
-    technical_questions: List[str]
+    questions: List[InterviewQuestion]
     gap_based_suggestions: List[InterviewPrepSuggestion]
     created_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
+
+class EmailNotification(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(default_factory=lambda: str(__import__('uuid').uuid4()))
+    user_email: str
+    subject: str
+    body: str
+    notification_type: Literal["status_change", "interview_reminder", "new_match", "system"]
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(__import__('datetime').timezone.utc))
+    read: bool = False
+
+class RecruiterDashboard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    total_candidates: int
+    active_positions: int
+    interviews_scheduled: int
+    avg_match_score: float
+    top_candidates: List[Dict]

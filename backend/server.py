@@ -517,6 +517,19 @@ async def get_jd(jd_id: str):
         raise HTTPException(status_code=404, detail="JD not found")
     return jd.model_dump()
 
+@api_router.get("/tailored/{tailored_id}")
+async def get_tailored_cv(tailored_id: str):
+    """Get tailored CV by ID."""
+    tailored = cache['tailored_cvs'].get(tailored_id)
+    if not tailored:
+        tailored_doc = await db.tailored_cvs.find_one({'id': tailored_id}, {'_id': 0})
+        if tailored_doc:
+            tailored = TailoredCV(**tailored_doc)
+            cache['tailored_cvs'][tailored_id] = tailored
+        else:
+            raise HTTPException(status_code=404, detail="Tailored CV not found")
+    return tailored.model_dump()
+
 @api_router.get("/tailored/{tailored_id}/download")
 async def download_tailored_cv(tailored_id: str):
     tailored = cache['tailored_cvs'].get(tailored_id)

@@ -105,10 +105,21 @@ def _extract_sections(text: str) -> Dict[str, str]:
     return sections
 
 def _extract_name(text: str) -> str:
-    """Extract name (usually first line)."""
+    """Extract name (usually first line or first all-caps words)."""
     lines = [l.strip() for l in text.split('\n') if l.strip()]
     if lines:
-        # First line that's not an email or phone
+        first_line = lines[0]
+        
+        # Try to extract name from beginning of first line (often ALL CAPS name before email)
+        # Pattern: Name is usually 2-4 words at start before email/phone
+        name_match = re.match(r'^([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})', first_line)
+        if name_match:
+            potential_name = name_match.group(1).strip()
+            # Ensure it's not an email or just one short word
+            if len(potential_name) > 3 and ' ' in potential_name or potential_name.isupper():
+                return potential_name.title() if potential_name.isupper() else potential_name
+        
+        # Fallback: First line that's not an email or phone
         for line in lines[:3]:
             if not re.search(r'@|\d{3}[-.]?\d{3}[-.]?\d{4}', line) and len(line.split()) <= 5:
                 return line

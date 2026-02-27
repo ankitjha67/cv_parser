@@ -111,6 +111,26 @@ function ApplicationsPage() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const response = await axios.get(`${API}/applications/export/csv`, {
+        headers: getAuthHeader(),
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `applications_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export CSV');
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen pt-24 pb-16 px-6 md:px-12 flex items-center justify-center">

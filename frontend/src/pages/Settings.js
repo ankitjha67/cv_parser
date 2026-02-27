@@ -1,0 +1,112 @@
+import React, { useState } from 'react';
+import { Key, Save, Info } from 'lucide-react';
+
+function SettingsPage() {
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [geminiKey, setGeminiKey] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    localStorage.setItem('openai_key', openaiKey);
+    localStorage.setItem('anthropic_key', anthropicKey);
+    localStorage.setItem('gemini_key', geminiKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <div className="min-h-screen pt-24 pb-16 px-6 md:px-12">
+      <div className="max-w-3xl mx-auto">
+        <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mb-4">Configuration</p>
+        <h1 className="text-4xl md:text-6xl font-serif tracking-tight font-medium leading-[0.9] mb-4">
+          Settings
+        </h1>
+        <p className="text-lg font-sans font-light leading-relaxed text-muted-foreground mb-12 max-w-2xl">
+          Configure API keys for LLM providers. Keys are stored locally in your browser.
+        </p>
+
+        {/* Info Box */}
+        <div className="bg-primary/10 border border-primary/20 p-6 mb-8 flex gap-4" data-testid="info-box">
+          <Info className="w-6 h-6 text-primary flex-shrink-0" strokeWidth={1.5} />
+          <div>
+            <p className="text-sm font-sans leading-relaxed">
+              <strong className="font-mono">Emergent LLM Key:</strong> A universal key (sk-emergent-8Bf11A2B8F114FfB17) is already configured in the backend for OpenAI, Anthropic, and Gemini. 
+              You can override it here with your own keys if preferred.
+            </p>
+          </div>
+        </div>
+
+        {/* API Keys */}
+        <div className="border border-border bg-card overflow-hidden mb-8">
+          <div className="p-6 border-b border-border/50 bg-muted/10">
+            <div className="flex items-center gap-4">
+              <Key className="w-6 h-6 text-primary" strokeWidth={1.5} />
+              <h2 className="text-2xl font-serif">API Keys</h2>
+            </div>
+          </div>
+          <div className="p-8 space-y-8">
+            <div>
+              <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">OpenAI API Key</label>
+              <input
+                type="password"
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                data-testid="openai-key-input"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">Anthropic API Key</label>
+              <input
+                type="password"
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                data-testid="anthropic-key-input"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-mono uppercase tracking-widest mb-2 text-muted-foreground">Google Gemini API Key</label>
+              <input
+                type="password"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="AIza..."
+                className="w-full border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-mono"
+                data-testid="gemini-key-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave}
+          className="w-full bg-primary text-primary-foreground px-8 py-6 text-base font-mono tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 flex items-center justify-center gap-3"
+          data-testid="save-settings-button"
+        >
+          <Save className="w-5 h-5" />
+          {saved ? 'Saved Successfully!' : 'Save Settings'}
+        </button>
+
+        {/* Provider Info */}
+        <div className="mt-12 border border-border bg-card overflow-hidden">
+          <div className="p-6 border-b border-border/50 bg-muted/10">
+            <h2 className="text-xl font-serif">Provider Information</h2>
+          </div>
+          <div className="p-8 space-y-4 text-sm font-sans leading-relaxed text-muted-foreground">
+            <p><strong className="text-foreground">Deterministic:</strong> No API key needed. Pure Python with regex, TF-IDF, and verb templates. 100% offline.</p>
+            <p><strong className="text-foreground">OpenAI:</strong> Uses emergentintegrations with models like gpt-5.2, gpt-4o. Requires EMERGENT_LLM_KEY or your own key.</p>
+            <p><strong className="text-foreground">Anthropic:</strong> Claude Sonnet 4.5, Opus 4.5. Requires EMERGENT_LLM_KEY or your own key.</p>
+            <p><strong className="text-foreground">Gemini:</strong> Google Gemini 2.5 Pro, 3 Flash. Requires EMERGENT_LLM_KEY or your own key.</p>
+            <p><strong className="text-foreground">HuggingFace:</strong> Local transformers (gpt2, etc.). No key needed, but currently uses deterministic fallback.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default SettingsPage;

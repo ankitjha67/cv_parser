@@ -121,15 +121,16 @@ def format_luxury_cv(cv: CV, jd_title: str = None) -> str:
         lines.append("EDUCATION")
         lines.append("-" * 9)
         lines.append("")
-        
+
         for edu in clean_education:
-            degree = edu.get('degree', '')
-            institution = edu.get('institution', '')
-            year = edu.get('year', '')
-            
-            if degree and institution:
+            degree = edu.get('degree', '').strip()
+            institution = edu.get('institution', '').strip()
+            year = edu.get('year', '').strip()
+
+            if degree:
                 lines.append(f"    {degree}")
-                lines.append(f"    {institution}")
+                if institution:
+                    lines.append(f"    {institution}")
                 if year:
                     lines.append(f"    {year}")
                 lines.append("")
@@ -213,68 +214,88 @@ def _categorize_skills(skills: List[str]) -> Dict[str, List[str]]:
     categories = {
         'Programming': [],
         'Data & Analytics': [],
+        'Finance & Risk': [],
         'Cloud & DevOps': [],
         'Tools & Platforms': [],
         'Methodologies': []
     }
-    
-    programming = {'Python', 'Java', 'JavaScript', 'TypeScript', 'C++', 'C#', 'Go', 'Rust', 'Ruby', 'PHP', 'R', 'Scala', 'Kotlin', 'Swift', 'SQL'}
-    data = {'TensorFlow', 'PyTorch', 'scikit-learn', 'Pandas', 'NumPy', 'Spark', 'Hadoop', 'Kafka', 'Machine Learning', 'Deep Learning', 'Data Science', 'AI', 'NLP', 'Data Analytics', 'IBM SPSS', 'Tableau', 'Power BI'}
-    cloud = {'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'Git', 'Linux', 'Terraform'}
-    methods = {'Agile', 'Scrum', 'DevOps', 'REST API', 'GraphQL', 'Microservices', 'ETL', 'Lean Six Sigma'}
-    
+
+    programming = {'Python', 'Java', 'JavaScript', 'TypeScript', 'C++', 'C#', 'Go', 'Rust',
+                   'Ruby', 'PHP', 'R', 'Scala', 'Kotlin', 'Swift', 'SQL'}
+    data = {'TensorFlow', 'PyTorch', 'scikit-learn', 'Pandas', 'NumPy', 'Spark', 'Hadoop',
+            'Kafka', 'Machine Learning', 'Deep Learning', 'Data Science', 'AI', 'NLP',
+            'Data Analytics', 'IBM SPSS', 'Tableau', 'Power BI', 'Excel'}
+    finance = {'OFSAA', 'BASEL', 'Credit Risk', 'Risk Management', 'Financial Modeling',
+               'Regulatory Reporting', 'SAS', 'Bloomberg', 'Reuters', 'RWA'}
+    cloud = {'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'Git',
+             'Linux', 'Terraform', 'Ansible'}
+    methods = {'Agile', 'Scrum', 'DevOps', 'REST API', 'GraphQL', 'Microservices', 'ETL',
+               'Lean Six Sigma', 'PMP'}
+
     for skill in skills:
         if skill in programming:
             categories['Programming'].append(skill)
         elif skill in data:
             categories['Data & Analytics'].append(skill)
+        elif skill in finance:
+            categories['Finance & Risk'].append(skill)
         elif skill in cloud:
             categories['Cloud & DevOps'].append(skill)
         elif skill in methods:
             categories['Methodologies'].append(skill)
         else:
             categories['Tools & Platforms'].append(skill)
-    
+
     # Remove empty categories
     return {k: v for k, v in categories.items() if v}
 
 
 def _clean_education(education: List[Dict], raw_text: str) -> List[Dict]:
-    """Extract and clean education from raw text."""
+    """Extract and clean education entries, falling back to pre-parsed data when needed."""
     clean_edu = []
-    
-    # Try to parse education properly from raw text
-    # Look for common patterns
+
+    # Strategy 1: parse from raw text looking for institution keywords
     edu_patterns = [
-        # PGDM / MBA style
-        r'(Post\s*Graduate\s*Diploma[^,\n]*|PGDM[^,\n]*|MBA[^,\n]*)\s*[-–]?\s*([A-Z][A-Za-z\s&]+(?:University|Institute|School|College|Business)[^,\n]*)\s*[-–]?\s*(?:.*?(\d{4}))?',
-        # Bachelor/Master style
-        r'(Bachelor[^,\n]*|Master[^,\n]*|B\.?Tech[^,\n]*|M\.?Tech[^,\n]*|B\.?S\.?[^,\n]*|M\.?S\.?[^,\n]*)\s*[-–]?\s*([A-Z][A-Za-z\s&]+(?:University|Institute|College)[^,\n]*)\s*[-–]?\s*(?:.*?(\d{4}))?',
+        r'(Post\s*Graduate\s*Diploma[^,\n]*|PGDM[^,\n]*|MBA[^,\n]*)\s*[-–]?\s*'
+        r'([A-Z][A-Za-z\s&]+(?:University|Institute|School|College|Business)[^,\n]*)\s*[-–]?\s*(?:.*?(\d{4}))?',
+        r'(Bachelor[^,\n]*|Master[^,\n]*|B\.?Tech[^,\n]*|M\.?Tech[^,\n]*'
+        r'|B\.?S\.?[^,\n]*|M\.?S\.?[^,\n]*)\s*[-–]?\s*'
+        r'([A-Z][A-Za-z\s&]+(?:University|Institute|College)[^,\n]*)\s*[-–]?\s*(?:.*?(\d{4}))?',
     ]
-    
     for pattern in edu_patterns:
-        matches = re.finditer(pattern, raw_text, re.IGNORECASE)
-        for match in matches:
-            degree = match.group(1).strip() if match.group(1) else ''
-            institution = match.group(2).strip() if match.group(2) else ''
-            year = match.group(3) if match.lastindex >= 3 and match.group(3) else ''
-            
+        for match in re.finditer(pattern, raw_text, re.IGNORECASE):
+            degree = (match.group(1) or '').strip()
+            institution = (match.group(2) or '').strip()
+            year = match.group(3) if match.lastindex >= 3 else ''
             if degree and institution and len(institution) > 5:
-                # Clean up
-                institution = re.sub(r'\s+', ' ', institution)
+                clean_edu.append({
+                    'degree': re.sub(r'\s+', ' ', degree),
+                    'institution': re.sub(r'\s+', ' ', institution),
+                    'year': year or ''
+                })
+
+    # Strategy 2: fall back to the pre-parsed education list (handles abbreviated degrees
+    # like "Master of Arts" extracted by parser._extract_education / _expand_degree)
+    if not clean_edu and education:
+        for edu in education:
+            degree = (edu.get('degree') or '').strip()
+            institution = (edu.get('institution') or '').strip()
+            year = (edu.get('year') or '').strip()
+            # Skip placeholder entries
+            if degree and degree not in ('Degree',):
                 clean_edu.append({
                     'degree': degree,
                     'institution': institution,
                     'year': year
                 })
-    
-    # Dedupe
-    seen = set()
+
+    # Deduplicate
+    seen: set = set()
     unique_edu = []
     for edu in clean_edu:
-        key = (edu['degree'].lower()[:20], edu['institution'].lower()[:20])
+        key = (edu['degree'].lower()[:25], edu['year'])
         if key not in seen:
             seen.add(key)
             unique_edu.append(edu)
-    
-    return unique_edu[:3]  # Max 3 education entries
+
+    return unique_edu[:4]

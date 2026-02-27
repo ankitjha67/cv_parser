@@ -73,11 +73,14 @@ def _parse_docx_bytes(content: bytes) -> str:
         raise ValueError(f"Failed to parse DOCX: {str(e)}")
 
 def clean_text(text: str) -> str:
-    """Clean and normalize text."""
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text)
-    # Remove special characters but keep bullets
-    text = re.sub(r'[^\w\s\-•●○◦▪▫⁃‣⦿⦾.,:;()\/\n@]', '', text)
-    # Normalize line breaks
-    text = re.sub(r'\n\s*\n', '\n\n', text)
+    """Clean and normalize text while preserving document structure (line breaks)."""
+    # Normalize line endings
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Collapse horizontal whitespace per line only — preserve newlines
+    lines = [re.sub(r'[ \t]+', ' ', line).strip() for line in text.split('\n')]
+    text = '\n'.join(lines)
+    # Normalize multiple blank lines to at most two
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    # Remove special characters but keep bullets, punctuation and newlines
+    text = re.sub(r'[^\w\s\-•●○◦▪▫⁃‣⦿⦾.,:;()\/\n@#+%]', '', text)
     return text.strip()

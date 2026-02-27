@@ -20,13 +20,27 @@ VERB_MAP = {
 
 # Common skills taxonomy
 SKILLS_TAXONOMY = [
+    # Programming
     'Python', 'Java', 'JavaScript', 'TypeScript', 'C++', 'C#', 'Go', 'Rust', 'Ruby', 'PHP',
+    # Frameworks
     'React', 'Angular', 'Vue', 'Node.js', 'Django', 'Flask', 'FastAPI', 'Spring', 'Express',
+    # Databases
     'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Cassandra', 'SQL', 'NoSQL',
+    # Cloud & DevOps
     'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'Git', 'Linux',
+    # Data & ML
     'TensorFlow', 'PyTorch', 'scikit-learn', 'Pandas', 'NumPy', 'NLP', 'Computer Vision',
     'Machine Learning', 'Deep Learning', 'Data Science', 'AI', 'ML', 'ETL', 'Spark',
-    'REST API', 'GraphQL', 'Microservices', 'Agile', 'Scrum', 'DevOps', 'Testing'
+    # API & Architecture
+    'REST API', 'GraphQL', 'Microservices',
+    # Methodologies
+    'Agile', 'Scrum', 'DevOps', 'Testing', 'Lean Six Sigma',
+    # Finance & Banking
+    'OFSAA', 'BASEL', 'Credit Risk', 'Risk Management', 'Financial Modeling',
+    'Regulatory Reporting', 'IBM SPSS', 'SAS', 'Bloomberg', 'RWA',
+    # Business & Product
+    'Business Analysis', 'Product Management', 'JIRA', 'ARIS', 'Balsamiq',
+    'Data Analytics', 'Tableau', 'Power BI', 'Excel',
 ]
 
 def parse_cv(text: str) -> CV:
@@ -105,44 +119,93 @@ def _extract_sections(text: str) -> Dict[str, str]:
     return sections
 
 def _extract_name(text: str) -> str:
-    """Extract name (usually first line or first all-caps words)."""
+    """Extract candidate name — typically one of the first few lines before section headers."""
     lines = [l.strip() for l in text.split('\n') if l.strip()]
-    if lines:
-        first_line = lines[0]
-        
-        # Try to extract name from beginning of first line (often ALL CAPS name before email)
-        # Pattern: Name is usually 2-4 words at start before email/phone
-        name_match = re.match(r'^([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})', first_line)
-        if name_match:
-            potential_name = name_match.group(1).strip()
-            # Ensure it's not an email or just one short word
-            if len(potential_name) > 3 and ' ' in potential_name or potential_name.isupper():
-                return potential_name.title() if potential_name.isupper() else potential_name
-        
-        # Fallback: First line that's not an email or phone
-        for line in lines[:3]:
-            if not re.search(r'@|\d{3}[-.]?\d{3}[-.]?\d{4}', line) and len(line.split()) <= 5:
-                return line
+
+    section_re = re.compile(
+        r'^(EXPERIENCE|EDUCATION|SKILLS|SUMMARY|PROFILE|WORK|EMPLOYMENT|'
+        r'CERTIFICATIONS|PROJECTS|CONTACT|REFERENCES|OBJECTIVE|PROFESSIONAL|'
+        r'ACHIEVEMENTS|AWARDS|LANGUAGES|INTERESTS)',
+        re.IGNORECASE
+    )
+    contact_re = re.compile(r'[@|\d\|•]')
+
+    for line in lines[:10]:
+        if section_re.match(line):
+            continue
+        if contact_re.search(line):
+            continue
+        if len(line) > 60:
+            continue
+        words = line.split()
+        # Name: 2-5 words, each starting with a capital letter
+        if 2 <= len(words) <= 5 and all(w[0].isupper() for w in words if w and w[0].isalpha()):
+            return line.title() if line.isupper() else line
+
+    # Regex fallback: look for a clean "Firstname Lastname" pattern
+    for line in lines[:6]:
+        if section_re.match(line) or contact_re.search(line):
+            continue
+        m = re.match(r'^([A-Z][A-Za-z-]+(?:\s+[A-Z][A-Za-z-]+){1,3})\s*$', line)
+        if m:
+            return m.group(1)
+
     return "Unknown"
 
 def _extract_experiences(full_text: str, exp_text: str) -> List[Experience]:
-    """Extract work experiences with bullet points and evidence."""
+    """Extract work experiences using date ranges as anchors, with a pattern fallback."""
     experiences = []
-    
-    # Split by job entries (usually separated by company/role lines)
-    # Look for patterns like: "Title, Company, Date" or "Title at Company"
-    job_pattern = r'([A-Z][\w\s]+(?:Engineer|Developer|Manager|Analyst|Scientist|Designer|Consultant|Lead|Director|Specialist))[,\s]+([A-Z][\w\s&.]+)[,\s]+(\w+\s+\d{4}\s*[-–]\s*(?:\w+\s+\d{4}|Present|Current))'
-    
+
+    # --- Strategy 1: date-range anchoring (most reliable) ---
+    month_re = (r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?'
+                r'|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
+                r'\s+\d{4}')
+    date_range_re = re.compile(
+        fr'({month_re})\s*[-–\s]+\s*({month_re}|Present|Current|Till\s*Date)',
+        re.IGNORECASE
+    )
+    date_matches = list(date_range_re.finditer(exp_text))
+
+    if date_matches:
+        for i, dm in enumerate(date_matches):
+            date_str = _clean_dates(dm.group(0))
+
+            # Header: text before date (up to 300 chars, but not past previous date end)
+            look_back = max(0, dm.start() - 300)
+            if i > 0:
+                look_back = max(look_back, date_matches[i - 1].end())
+            header_text = exp_text[look_back:dm.start()].strip()
+
+            # Body: text after date up to next date match
+            next_anchor = date_matches[i + 1].start() if i + 1 < len(date_matches) else len(exp_text)
+            body_text = exp_text[dm.end():next_anchor]
+
+            role, company = _parse_role_company(header_text)
+            bullets = _extract_bullets(body_text, full_text)
+
+            experiences.append(Experience(
+                role=role or "Professional",
+                company=company or "Organisation",
+                dates=date_str,
+                bullets=[b['text'] for b in bullets],
+                evidence_map={b['text']: b['evidence'] for b in bullets}
+            ))
+        return experiences
+
+    # --- Strategy 2: strict keyword pattern fallback ---
+    job_pattern = (r'([A-Z][\w\s]+(?:Engineer|Developer|Manager|Analyst|Scientist|Designer'
+                   r'|Consultant|Lead|Director|Specialist))[,\s]+'
+                   r'([A-Z][\w\s&.]+)[,\s]+'
+                   r'(\w+\s+\d{4}\s*[-–]\s*(?:\w+\s+\d{4}|Present|Current))')
     matches = list(re.finditer(job_pattern, exp_text, re.MULTILINE))
-    
+
     if not matches:
-        # Fallback: try to extract at least one generic experience
         bullets = _extract_bullets(exp_text, full_text)
         if bullets:
             experiences.append(Experience(
                 role="Professional",
                 company="Previous Employer",
-                dates="2020 - Present",
+                dates="",
                 bullets=[b['text'] for b in bullets],
                 evidence_map={b['text']: b['evidence'] for b in bullets}
             ))
@@ -151,24 +214,58 @@ def _extract_experiences(full_text: str, exp_text: str) -> List[Experience]:
             role = match.group(1).strip()
             company = match.group(2).strip()
             dates = match.group(3).strip()
-            
-            # Extract bullets for this experience
             start_pos = match.end()
-            end_pos = matches[i+1].start() if i+1 < len(matches) else len(exp_text)
-            job_text = exp_text[start_pos:end_pos]
-            
-            bullets = _extract_bullets(job_text, full_text)
-            
-            if bullets or True:  # Include even if no bullets
-                experiences.append(Experience(
-                    role=role,
-                    company=company,
-                    dates=dates,
-                    bullets=[b['text'] for b in bullets] if bullets else ["Contributed to team projects"],
-                    evidence_map={b['text']: b['evidence'] for b in bullets} if bullets else {}
-                ))
-    
+            end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(exp_text)
+            bullets = _extract_bullets(exp_text[start_pos:end_pos], full_text)
+            experiences.append(Experience(
+                role=role,
+                company=company,
+                dates=dates,
+                bullets=[b['text'] for b in bullets] if bullets else [],
+                evidence_map={b['text']: b['evidence'] for b in bullets} if bullets else {}
+            ))
+
     return experiences
+
+
+def _parse_role_company(text: str) -> Tuple[str, str]:
+    """Extract role title and company name from the header segment before a date range."""
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    if not lines:
+        return '', ''
+
+    role_re = re.compile(
+        r'(?:Engineer|Developer|Manager|Analyst|Scientist|Designer|Consultant|'
+        r'Lead|Director|Specialist|Officer|Head|VP|President|Executive|Associate|'
+        r'Intern|Trainee|Banker|Advisor|Administrator|Coordinator)',
+        re.IGNORECASE
+    )
+    company_re = re.compile(
+        r'(?:LLP|Ltd|LLC|Inc|Pvt|Bank|Corp|Group|Solutions|Services|Finance|'
+        r'Institute|Technologies|Systems|Consulting|Partners)',
+        re.IGNORECASE
+    )
+    city_re = re.compile(
+        r'\s+(?:Mumbai|Delhi|Chennai|Bangalore|Hyderabad|Pune|Kolkata|Noida|Gurugram|Gurgaon)\s*$',
+        re.IGNORECASE
+    )
+
+    role = ''
+    company = ''
+    for line in reversed(lines):
+        if role_re.search(line) and not role:
+            role = line.strip()
+        if company_re.search(line) and not company:
+            company = city_re.sub('', line).strip()
+
+    if not company and lines:
+        company = city_re.sub('', lines[0]).strip()
+    if not role and len(lines) > 1:
+        role = lines[-1]
+    elif not role and lines:
+        role = lines[0]
+
+    return role, company
 
 def _extract_bullets(text: str, full_text: str) -> List[Dict]:
     """Extract bullet points with evidence tracking."""
@@ -223,30 +320,83 @@ def _extract_skills(text: str) -> List[str]:
     
     return sorted(list(skills))
 
+def _expand_degree(abbrev: str) -> str:
+    """Expand degree abbreviations to full names."""
+    mapping = {
+        'MA': 'Master of Arts',
+        'MS': 'Master of Science',
+        'MSC': 'Master of Science',
+        'MBA': 'Master of Business Administration',
+        'BA': 'Bachelor of Arts',
+        'BS': 'Bachelor of Science',
+        'BSC': 'Bachelor of Science',
+        'BTECH': 'Bachelor of Technology',
+        'MTECH': 'Master of Technology',
+        'PHD': 'Doctor of Philosophy',
+        'MCA': 'Master of Computer Applications',
+        'BCA': 'Bachelor of Computer Applications',
+        'PGDM': 'Post Graduate Diploma in Management',
+        'MCOM': 'Master of Commerce',
+        'BCOM': 'Bachelor of Commerce',
+        'BE': 'Bachelor of Engineering',
+        'ME': 'Master of Engineering',
+    }
+    normalised = re.sub(r'[\s.]', '', abbrev).upper()
+    for key, val in mapping.items():
+        if re.sub(r'[\s.]', '', key).upper() == normalised:
+            return val
+    return abbrev  # Return as-is if no match found
+
+
 def _extract_education(edu_text: str) -> List[Dict[str, str]]:
-    """Extract education entries."""
+    """Extract education entries — handles full names and common abbreviations."""
     education = []
-    
-    # Pattern: Degree, Institution, Year
-    pattern = r'(B\.?S\.?|M\.?S\.?|B\.?A\.?|M\.?A\.?|Ph\.?D\.?|Bachelor|Master|Doctorate)[\s\w]*,?\s+([A-Z][\w\s&]+),?\s+(\d{4})'
-    matches = re.finditer(pattern, edu_text, re.IGNORECASE)
-    
-    for match in matches:
-        education.append({
-            'degree': match.group(1),
-            'institution': match.group(2).strip(),
-            'year': match.group(3)
-        })
-    
+    if not edu_text.strip():
+        return education
+
+    seen_entries: set = set()  # (normalised_degree, year)
+
+    # Strategy 1: full degree name + optional institution + optional year
+    full_pattern = re.compile(
+        r'(Post\s*Graduate[^,\n]*|PGDM[^,\n]*|MBA[^,\n]*|MCA[^,\n]*|BCA[^,\n]*|'
+        r'B\.?\s*Tech[^,\n]*|M\.?\s*Tech[^,\n]*|Bachelor[^,\n]*|Master[^,\n]*|'
+        r'Doctorate[^,\n]*|Ph\.?\s*D\.?[^,\n]*|B\.?E\.?[^,\n]*|M\.?E\.?[^,\n]*|'
+        r'B\.?S\.?[^,\n]{0,30}|M\.?S\.?[^,\n]{0,30}|B\.?A\.?[^,\n]{0,30}|M\.?A\.?[^,\n]{0,30})'
+        r'(?:[,\s]+([A-Z][A-Za-z\s&]+(?:University|Institute|College|School|IIT|IIM)[A-Za-z\s]*))?'
+        r'[,\s]*(?:.*?(\d{4}))?',
+        re.IGNORECASE
+    )
+    for m in full_pattern.finditer(edu_text):
+        degree_raw = (m.group(1) or '').strip()
+        institution = (m.group(2) or '').strip()
+        year = m.group(3) or ''
+        if not degree_raw:
+            continue
+        degree = _expand_degree(degree_raw)
+        key = (degree.lower()[:20], year)
+        if key not in seen_entries:
+            seen_entries.add(key)
+            education.append({'degree': degree, 'institution': institution, 'year': year})
+
+    # Strategy 2: abbreviated degree + optional month + year  e.g. "Ma - August (2021)"
+    if not education:
+        abbrev_re = re.compile(
+            r'\b(ma|ms|mba|bsc|ba|bs|msc|btech|mtech|phd|mca|bca|pgdm|mcom|bcom|be|me)\b'
+            r'[\s\-–]*(?:\w+\s+)?\(?(\d{4})\)?',
+            re.IGNORECASE
+        )
+        for m in abbrev_re.finditer(edu_text):
+            year = m.group(2)
+            degree = _expand_degree(m.group(1))
+            key = (degree.lower()[:20], year)
+            if key not in seen_entries:
+                seen_entries.add(key)
+                education.append({'degree': degree, 'institution': '', 'year': year})
+
     if not education and edu_text.strip():
-        # Fallback
-        education.append({
-            'degree': 'Degree',
-            'institution': 'University',
-            'year': '2020'
-        })
-    
-    return education
+        education.append({'degree': 'Degree', 'institution': '', 'year': ''})
+
+    return education[:4]
 
 def _extract_jd_title(text: str) -> str:
     """Extract job title from JD."""

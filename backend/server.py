@@ -28,6 +28,7 @@ from src.analytics import (
     calculate_success_rate_by_score_threshold
 )
 from src.interview_prep import generate_interview_prep
+from src.formatter import format_luxury_cv
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -539,27 +540,24 @@ async def download_tailored_cv(tailored_id: str):
             tailored = TailoredCV(**tailored_doc)
         else:
             raise HTTPException(status_code=404, detail="Tailored CV not found")
-    
-    cv = tailored.cv
-    text_content = f"{cv.name}\n\n"
-    if cv.summary:
-        text_content += f"SUMMARY\n{cv.summary}\n\n"
-    
-    text_content += "EXPERIENCE\n"
-    for exp in cv.experiences:
-        text_content += f"\n{exp.role}, {exp.company}, {exp.dates}\n"
-        for bullet in exp.bullets:
-            text_content += f"• {bullet}\n"
-    
-    text_content += f"\n\nSKILLS\n{', '.join(cv.skills)}\n\n"
-    text_content += "EDUCATION\n"
-    for edu in cv.education:
-        text_content += f"{edu.get('degree', '')} - {edu.get('institution', '')} ({edu.get('year', '')})\n"
-    
+
+    # Resolve JD title for the luxury formatter (best-effort)
+    jd_title = None
+    report = cache['reports'].get(tailored.match_report_id)
+    if report:
+        jd_title = getattr(report, 'jd_title', None)
+        if not jd_title:
+            jd = cache['jds'].get(report.jd_id)
+            if jd:
+                jd_title = jd.title
+
+    text_content = format_luxury_cv(tailored.cv, jd_title=jd_title)
+    safe_name = tailored.cv.name.replace(' ', '_').replace('/', '_')
+
     return Response(
         content=text_content,
         media_type="text/plain",
-        headers={"Content-Disposition": f"attachment; filename=tailored_cv_{cv.name.replace(' ', '_')}.txt"}
+        headers={"Content-Disposition": f"attachment; filename=tailored_cv_{safe_name}.txt"}
     )
 
 # ========== CSV EXPORT ENDPOINT ==========

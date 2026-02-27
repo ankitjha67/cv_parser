@@ -2,15 +2,18 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import '@/App.css';
 import '@/index.css';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 // Pages
 import LandingPage from '@/pages/Landing';
 import UploadPage from '@/pages/Upload';
 import DashboardPage from '@/pages/Dashboard';
+import ApplicationsPage from '@/pages/Applications';
 import SettingsPage from '@/pages/Settings';
 
 function Navigation() {
   const location = useLocation();
+  const { user } = useAuth();
   const isLanding = location.pathname === '/';
 
   if (isLanding) return null;
@@ -23,9 +26,9 @@ function Navigation() {
           className="text-2xl font-serif font-semibold tracking-tight hover:text-primary transition-colors"
           data-testid="logo-link"
         >
-          CV Matcher
+          CV Matcher <span className="text-xs font-mono text-accent ml-2">PREMIUM</span>
         </Link>
-        <div className="flex gap-8">
+        <div className="flex gap-8 items-center">
           <Link 
             to="/upload" 
             className="text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
@@ -41,11 +44,18 @@ function Navigation() {
             Dashboard
           </Link>
           <Link 
+            to="/applications" 
+            className="text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
+            data-testid="nav-applications"
+          >
+            Applications
+          </Link>
+          <Link 
             to="/settings" 
             className="text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
             data-testid="nav-settings"
           >
-            Settings
+            {user ? user.name.split(' ')[0] : 'Settings'}
           </Link>
         </div>
       </div>
@@ -59,15 +69,18 @@ function App() {
       {/* Noise overlay */}
       <div className="noise-overlay" />
       
-      <BrowserRouter>
-        <Navigation />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Navigation />
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </div>
   );
 }

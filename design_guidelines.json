@@ -1,0 +1,147 @@
+{
+  "metadata": {
+    "project_name": "CV-JD Matcher - Luxury Edition",
+    "persona": "E1 - The Anti-AI Designer",
+    "theme_strategy": "The Editor's Desk (Swiss Editorial + Luxury Jewel)",
+    "version": "1.0"
+  },
+  "design_system": {
+    "typography": {
+      "font_family": {
+        "headings": ["Playfair Display", "serif"],
+        "subheadings": ["Cormorant Garamond", "serif"],
+        "body": ["Manrope", "sans-serif"],
+        "data": ["JetBrains Mono", "monospace"]
+      },
+      "usage_rules": {
+        "h1": "text-5xl md:text-7xl font-serif tracking-tight font-medium leading-[0.9]",
+        "h2": "text-3xl md:text-5xl font-serif tracking-tight font-normal",
+        "h3": "text-xl md:text-3xl font-serif italic text-muted-foreground",
+        "body_large": "text-lg md:text-xl font-sans font-light leading-relaxed",
+        "body_default": "text-base font-sans font-normal leading-relaxed text-muted-foreground",
+        "caption": "text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground/70",
+        "numeric": "font-mono font-medium tracking-tighter"
+      },
+      "imports": [
+        "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;0,900;1,400&display=swap"
+      ]
+    },
+    "colors": {
+      "strategy": "Dual Mode - Editorial Print (Light) & VIP Lounge (Dark)",
+      "light": {
+        "background": "0 0% 99%", 
+        "foreground": "150 5% 10%", 
+        "card": "0 0% 100%",
+        "card_foreground": "150 5% 15%",
+        "primary": "165 60% 18%", 
+        "primary_foreground": "0 0% 100%",
+        "secondary": "30 30% 94%", 
+        "secondary_foreground": "30 40% 20%",
+        "muted": "30 20% 96%",
+        "muted_foreground": "25 5% 45%",
+        "accent": "24 80% 50%", 
+        "accent_foreground": "0 0% 100%",
+        "border": "20 5% 90%",
+        "input": "20 5% 90%",
+        "ring": "165 60% 18%"
+      },
+      "dark": {
+        "background": "165 30% 4%", 
+        "foreground": "30 10% 90%",
+        "card": "165 30% 6%",
+        "card_foreground": "30 10% 90%",
+        "primary": "165 50% 40%", 
+        "primary_foreground": "0 0% 100%",
+        "secondary": "165 30% 10%", 
+        "secondary_foreground": "165 20% 80%",
+        "muted": "165 30% 10%",
+        "muted_foreground": "165 10% 60%",
+        "accent": "24 70% 60%", 
+        "accent_foreground": "0 0% 100%",
+        "border": "165 20% 12%",
+        "input": "165 20% 12%",
+        "ring": "165 50% 40%"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-12 lg:p-24",
+      "section_gap": "gap-12 md:gap-24",
+      "element_gap": "gap-4 md:gap-8",
+      "internal_padding": "p-6 md:p-8"
+    },
+    "radius": {
+      "default": "0rem",
+      "button": "0rem",
+      "card": "0rem",
+      "input": "0rem"
+    }
+  },
+  "layout_strategies": {
+    "landing_page": {
+      "grid_type": "The Tetris Grid",
+      "specs": "grid grid-cols-1 md:grid-cols-12 gap-0 border-collapse",
+      "cell_style": "border border-border/40 p-8 md:p-12 min-h-[300px] flex flex-col justify-between hover:bg-muted/30 transition-colors duration-500",
+      "hero_span": "col-span-1 md:col-span-8 lg:col-span-9 row-span-2 bg-foreground text-background",
+      "cta_span": "col-span-1 md:col-span-4 lg:col-span-3 row-span-1 flex items-center justify-center bg-accent text-accent-foreground"
+    },
+    "dashboard": {
+      "grid_type": "The Bento Density",
+      "specs": "grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 p-4 md:p-8 max-w-[1920px] mx-auto",
+      "card_style": "bg-card text-card-foreground border border-border shadow-none hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+    }
+  },
+  "components": {
+    "buttons": {
+      "default": "rounded-none px-8 py-6 text-sm font-mono tracking-widest uppercase transition-all duration-300 hover:bg-foreground hover:text-background border border-foreground/10",
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20",
+      "outline": "bg-transparent border border-foreground/20 hover:border-foreground text-foreground"
+    },
+    "cards": {
+      "base": "rounded-none border border-border bg-card p-0 overflow-hidden group relative",
+      "header": "p-6 border-b border-border/50 bg-muted/10",
+      "content": "p-6"
+    },
+    "inputs": {
+      "base": "rounded-none border-0 border-b border-input bg-transparent px-0 py-4 text-lg focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/50 font-serif italic"
+    },
+    "navigation": {
+      "wrapper": "fixed top-0 left-0 right-0 z-50 border-b border-border/40 backdrop-blur-md bg-background/80 supports-[backdrop-filter]:bg-background/60",
+      "link": "text-sm font-mono uppercase tracking-widest hover:text-primary transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all hover:after:w-full"
+    }
+  },
+  "visual_enhancers": {
+    "noise_overlay": {
+      "css": "fixed inset-0 z-[9999] pointer-events-none opacity-[0.03] mix-blend-overlay",
+      "image": "url('https://grainy-gradients.vercel.app/noise.svg')"
+    },
+    "animations": {
+      "scroll": "Lenis smooth scrolling mandatory",
+      "micro": "group-hover:translate-x-1 transition-transform duration-300 ease-out",
+      "loading": "animate-pulse bg-muted/50"
+    }
+  },
+  "assets": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-[1.5px] w-5 h-5"
+    },
+    "images": {
+      "hero_abstract": "https://images.unsplash.com/photo-1537655949728-d4e1c7c7bf90?q=80&w=2574&auto=format&fit=crop",
+      "workspace_minimal": "https://images.unsplash.com/photo-1689135489866-d4bc54629ec9?q=80&w=2670&auto=format&fit=crop",
+      "texture_paper": "https://images.unsplash.com/photo-1518117823675-9a4bb23df61c?q=80&w=2574&auto=format&fit=crop"
+    }
+  },
+  "universal_guidelines": [
+    "DO NOT use gradients for backgrounds. Use solid colors or subtle noise textures.",
+    "DO NOT use rounded corners (> 4px). Keep it sharp and editorial.",
+    "Typography is the UI. Use font size and weight for hierarchy, not colorful badges.",
+    "Always use the 'Playfair Display' font for headings Level 1 and 2.",
+    "Use 'JetBrains Mono' for any data, scores, or code snippets.",
+    "Inputs should look like lines on a paper form (border-bottom only), not boxes.",
+    "Buttons should feel like physical switches or stamps - precise, rectangular.",
+    "All animations must be 'ease-out-expo' (fast start, slow smooth finish).",
+    "DarkMode is not just inverted colors; it is a 'VIP Lounge' (dim, spotlight effects).",
+    "Data-testid attributes are MANDATORY for all interactive elements."
+  ],
+  "instructions_to_main_agent": "1. Install 'lucide-react', 'clsx', 'tailwind-merge' if missing. 2. Update 'index.css' with the CSS variables provided in 'design_system.colors'. 3. Import the Google Fonts in 'index.css' or 'App.css'. 4. Create a 'Layout' component that applies the noise overlay globally. 5. Follow the 'layout_strategies' for the Landing Page and Dashboard. 6. Override Shadcn components in 'components/ui' to match the 'radius: 0rem' and border styles."
+}
